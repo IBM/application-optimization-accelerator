@@ -1,0 +1,16 @@
+---
+- name: Create the catalog source with automatic updates enabled
+  kubernetes.core.k8s:
+    state: present
+    src: ./files/catalog-source-auto-updates.yaml
+
+# Failed to find API for resource with apiVersion \"v1alpha1\" and kind \"CatalogSources\"
+- name: Wait until the catalog source is created
+  kubernetes.core.k8s_info:
+    kind: CatalogSource
+    wait: yes
+    api_version: v1alpha1
+    name: ibm-operator-catalog
+    namespace: openshift-marketplace
+    wait_sleep: 10
+    wait_timeout: 360

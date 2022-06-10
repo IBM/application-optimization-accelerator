@@ -1,0 +1,13 @@
+---
+- name: Create a custom project (namespace)
+  kubernetes.core.k8s:
+    template: ./templates/namespace.j2
+    state: present
+
+- name: Wait until the namespace is created
+  kubernetes.core.k8s_info:
+    kind: Namespace
+    wait: yes
+    name: "{{ NAMESPACE }}"
+    wait_sleep: 10
+    wait_timeout: 360

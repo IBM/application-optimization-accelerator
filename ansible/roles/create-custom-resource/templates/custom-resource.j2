@@ -1,0 +1,30 @@
+apiVersion: orchestrator.aiops.ibm.com/v1alpha1
+kind: Installation
+metadata:
+  name: {{ WAIOPS_NAME }}
+  namespace: {{ NAMESPACE }}
+spec:
+  size: {{ WAIOPS_SIZE }}
+  storageClass: '{{ STORAGECLASS_FILE }}'
+  storageClassLargeBlock: '{{ STORAGECLASS_BLOCK }}'
+  imagePullSecret: ibm-entitlement-key
+  license:
+    accept: {{ LICENSE_ACCEPTANCE }}
+  pakModules:
+  - name: aiopsFoundation
+    enabled: true
+  - name: applicationManager
+    enabled: true
+  - name: aiManager
+    enabled: true
+    config:
+    - name: aimanager-operator
+      spec:
+        aimanager:
+          integratorProxy:
+            enabled: {{ PROXY_FLAG }}
+            proxyRoute: "{{ PROXY_URL }}"
+  - name: connection
+    enabled: false
+  helmValuesASM:
+    global.enableAllRoutes: true

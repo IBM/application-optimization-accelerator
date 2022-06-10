@@ -1,0 +1,19 @@
+{
+    "unique_id": "RobotShop",
+    "type": "string",
+    "description": "Gather and read data about workloads in local cluster and robot-shop namespace",
+    "parameters": {
+        "data_center": "demo",
+        "namespace": "robot-shop",
+        "hide_terminated_pods": true,
+        "namespaceGroupParameters": {
+        "correlate": true
+        }
+    },
+    "schedule": {
+        "interval": 0,
+        "units": "Days",
+        "nextRunTime": 0
+    },
+    "scheduleRequest": true
+}

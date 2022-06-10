@@ -1,0 +1,14 @@
+{
+    "unique_id": "listenJob",
+    "type": "string",
+    "description": "job description",
+    "parameters": {
+      "provider": "listenJob"
+    },
+    "schedule": {
+      "interval": 0,
+      "units": "Days",
+      "nextRunTime": 0
+    },
+    "scheduleRequest": true
+}

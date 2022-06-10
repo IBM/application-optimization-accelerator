@@ -1,0 +1,21 @@
+apiVersion: core.automation.ibm.com/v1beta1
+kind: AutomationUIConfig
+metadata:
+  name: {{ AUTO_UI_INSTANCE }}
+  namespace: {{ NAMESPACE }}
+spec:
+  description: AutomationUIConfig for cp4waiops
+  license:
+    accept: true
+  version: v1.3
+  tls:
+    caSecret:
+      key: ca.crt
+      secretName: external-tls-secret
+    certificateSecret:
+      secretName: external-tls-secret
+  zen: true
+  zenService:
+    storageClass: {{ IAF_STORAGE }}
+    zenCoreMetaDbStorageClass: {{ ZEN_STORAGE }}
+    iamIntegration: true

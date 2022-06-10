@@ -1,0 +1,27 @@
+{
+  "app": "robotshop",
+  "availableReplicas": 1,
+  "createdReplicas": 1,
+  "dataCenter": "demo",
+  "desiredReplicas": 1,
+  "entityTypes": [
+    "deployment"
+  ],
+  "mergeTokens": [
+    "ratings"
+  ],
+  "matchTokens": [
+    "ratings-deployment",
+    "ratings-log",
+    "ratings-predictive"
+  ],
+  "name": "ratings",
+  "namespace": "robot-shop",
+  "readyReplicas": 1,
+  "tags": [
+    "app:robotshop",
+    "namespace:robot-shop"
+  ],
+  "vertexType": "resource",
+  "uniqueId": "ratings-id"
+}

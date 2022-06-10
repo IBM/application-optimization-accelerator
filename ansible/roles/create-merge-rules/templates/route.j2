@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Route
+metadata:
+  name: topology-merge
+  namespace: "{{ NAMESPACE }}"
+spec:
+  host: topology-merge-{{ NAMESPACE }}.{{ PROXY_DOMAIN }}
+  port:
+    targetPort: https-merge-api
+  tls:
+    termination: passthrough 
+    insecureEdgeTerminationPolicy: Redirect 
+  to:
+    kind: Service
+    name: aiops-topology-merge

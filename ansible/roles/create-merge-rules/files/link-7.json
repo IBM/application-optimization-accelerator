@@ -1,0 +1,5 @@
+{
+  "_edgeType": "dependsOn",
+  "_fromUniqueId": "cart-id",
+  "_toUniqueId": "redis-id"
+}

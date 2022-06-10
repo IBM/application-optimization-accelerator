@@ -1,0 +1,17 @@
+{
+    "tokens": [
+        "name"
+    ],
+    "entityTypes": [
+        "deployment"
+    ],
+    "providers": [
+        "*"
+    ],
+    "observers": [
+        "*"
+    ],
+    "ruleType": "mergeRule",
+    "name": "merge-name-type",
+    "ruleStatus": "enabled"
+}

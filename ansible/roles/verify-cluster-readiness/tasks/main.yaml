@@ -1,0 +1,3 @@
+---
+- name: Verify cluster readiness
+# https://github.com/IBM/cp4waiops-samples/tree/main/prereq-checker/3.2#ibm-cloud-pak-for-watson-aiops-ai-manager-prerequisite-checker-tool

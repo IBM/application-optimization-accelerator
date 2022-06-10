@@ -1,0 +1,25 @@
+---
+- name: Check if an entitlement key secret exists
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: ibm-entitlement-key
+    namespace: "{{ NAMESPACE }}"
+  register: K8S_EXISTS
+
+- name: Create an entitlement key secret
+  shell: |
+    oc create secret docker-registry 'ibm-entitlement-key' \
+    --docker-username={{ ENTITLED_REGISTRY_USER }} \
+    --docker-password={{ ENTITLED_REGISTRY_KEY }} \
+    --docker-server={{ ENTITLED_REGISTRY }} \
+    --namespace={{ NAMESPACE }}
+  when: K8S_EXISTS.resources|length == 0
+
+- name: Wait until the Secret is created
+  kubernetes.core.k8s_info:
+    kind: Secret
+    wait: yes
+    name: "{{ ENTITLED_REGISTRY_KEY }}"
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 10
+    wait_timeout: 360

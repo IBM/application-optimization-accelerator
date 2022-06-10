@@ -1,0 +1,22 @@
+{
+  "app": "robotshop",
+  "availableReplicas": 1,
+  "createdReplicas": 1,
+  "dataCenter": "demo",
+  "desiredReplicas": 1,
+  "entityTypes": [
+    "server"
+  ],
+  "matchTokens": [
+    "paypal"
+  ],
+  "name": "www.paypal.com",
+  "namespace": "robot-shop",
+  "readyReplicas": 1,
+  "tags": [
+    "app:robotshop",
+    "namespace:robot-shop"
+  ],
+  "vertexType": "resource",
+  "uniqueId": "www.paypal.com-id"
+}

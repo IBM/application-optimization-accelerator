@@ -1,0 +1,114 @@
+---
+- name: Create a custom project (namespace)
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: "{{ NAMESPACE }}"
+    state: present
+    
+# Patch OCP Registry
+# - name: PREREQUISITES -      🩹 Patch OCP Registry 
+#   shell: oc patch configs.imageregistry.operator.openshift.io/cluster --patch '{"spec":{"defaultRoute":true}}' --type=merge
+#   ignore_errors: yes
+
+# Create IBM Entitlements Pull Secret
+- name: PREREQUISITES -      🔎 Check Pull Secret
+  k8s_info:
+    kind: Secret
+    name: ibm-entitlement-key
+    namespace: "{{ NAMESPACE }}"
+  register: K8S_EXISTS
+# - name: DEBUG -              🟢 Output
+#   debug: 
+#     var: K8S_EXISTS.resources
+#     verbosity: 1
+
+- name: Get Entitlement Key
+  shell: oc get secret -n "{{ NAMESPACE }}" ibm-entitlement-key -o yaml | grep '.dockerconfigjson:' | head -1 | cut -d ':' -f2 | cut -d ' ' -f2 | base64 --decode | cut -d ':' -f5 | cut -d ',' -f1 | cut -d '"' -f2
+  register: ENTITLED_REGISTRY_KEY_OUTPUT
+
+- name: Set Entitlement Key
+  set_fact:
+    ENTITLED_REGISTRY_KEY: "{{ ENTITLED_REGISTRY_KEY_OUTPUT.stdout }}"
+
+# Create IBM Entitlements Pull Secret
+- name: Create Pull Secret
+  shell: |
+    oc create secret docker-registry 'ibm-entitlement-key' --docker-server={{ ENTITLED_REGISTRY }} --docker-username={{ ENTITLED_REGISTRY_USER }} --docker-password={{ ENTITLED_REGISTRY_KEY }} --namespace={{ NAMESPACE }}
+    oc create secret docker-registry 'ibm-entitlement-key' --docker-server={{ ENTITLED_REGISTRY }} --docker-username={{ ENTITLED_REGISTRY_USER }} --docker-password={{ ENTITLED_REGISTRY_KEY }} --namespace=openshift-marketplace
+    oc create secret docker-registry 'ibm-entitlement-key' --docker-server={{ ENTITLED_REGISTRY }} --docker-username={{ ENTITLED_REGISTRY_USER }} --docker-password={{ ENTITLED_REGISTRY_KEY }} --namespace=openshift-operators
+    oc create secret docker-registry 'ibm-aiops-pull-secret' --docker-server={{ ENTITLED_REGISTRY }} --docker-username={{ ENTITLED_REGISTRY_USER }} --docker-password={{ ENTITLED_REGISTRY_KEY }} --namespace={{ NAMESPACE }}
+    oc create secret docker-registry 'ibm-aiops-pull-secret' --docker-server={{ ENTITLED_REGISTRY }} --docker-username={{ ENTITLED_REGISTRY_USER }} --docker-password={{ ENTITLED_REGISTRY_KEY }} --namespace=openshift-marketplace
+    oc create secret docker-registry 'ibm-aiops-pull-secret' --docker-server={{ ENTITLED_REGISTRY }} --docker-username={{ ENTITLED_REGISTRY_USER }} --docker-password={{ ENTITLED_REGISTRY_KEY }} --namespace=openshift-operators
+    oc patch -n openshift-marketplace serviceaccount ibm-aiops-catalog -p '{"imagePullSecrets": [{"name": "ibm-entitlement-key"}]}'
+    oc patch -n openshift-marketplace serviceaccount default -p '{"imagePullSecrets": [{"name": "ibm-entitlement-key"}]}'
+  ignore_errors: yes
+  when: K8S_EXISTS.resources|length == 0
+
+# - name: PREREQUISITES -      🚀 Patch AIOPS Topology Cassandra Auth Secret Generator Pull Secret
+#   shell: |
+#     oc patch -n {{ NAMESPACE }} serviceaccount aiops-topology-service-account -p '{"imagePullSecrets": [{"name": "ibm-entitlement-key"}]}'
+#     oc delete pods $(oc get pods -n {{ NAMESPACE }} --selector=job-name=aiops-topology-cassandra-auth-secret-generator --no-headers -o custom-columns=":metadata.name") -n {{ NAMESPACE }}
+#   ignore_errors: yes
+#   when: K8S_EXISTS.resources|length == 0
+
+- name: Patch AIOPS Topology Cassandra Auth Secret Generator Pull Secret
+  kubernetes.core.k8s:
+    src: ./templates/cassandra-secret-patch.j2
+    state: patched
+  when: K8S_EXISTS.resources|length == 0
+  # shell: |
+  #   oc apply -n {{ NAMESPACE }} -f ./roles/create-pull-secrets/files/cassandra-secret-patch.yaml
+  #   oc delete pods $(oc get pods -n {{ NAMESPACE }} --selector=job-name=aiops-topology-cassandra-auth-secret-generator --no-headers -o custom-columns=":metadata.name") -n {{ NAMESPACE }}
+  # ignore_errors: yes
+  # when: K8S_EXISTS.resources|length == 0
+
+
+# - name: Delete AIOPS Topology Cassandra Auth Secret Generator Pods
+#   kubernetes.core.k8s:
+#     api_version: v1
+#     kind: Pod
+#     namespace: "{{ NAMESPACE }}"
+#     selector: job-name=aiops-topology-cassandra-auth-secret-generator
+#     state: absent
+#     when: K8S_EXISTS.resources|length == 0
+- name: Delete AIOPS Topology Cassandra Auth Secret Generator Pods
+  shell: oc delete pods $(oc get pods -n {{ NAMESPACE }} --selector=job-name=aiops-topology-cassandra-auth-secret-generator --no-headers -o custom-columns=":metadata.name") -n {{ NAMESPACE }}
+  ignore_errors: yes
+  when: K8S_EXISTS.resources|length == 0
+
+#####################################################
+#####################################################
+#####################################################
+#####################################################
+# This patch is working, but it is in the wrong place
+# Don't delete this unless you have tested the
+# installation multiple times without this existing
+# somewhere in the installation process
+# - name: Patch AIOpsAnalyticsOrchestrator aiops
+#   shell: |
+#     oc get -n {{ NAMESPACE }} AIOpsAnalyticsOrchestrator aiops -o yaml > ./roles/create-pull-secrets/files/aiops-patch-template.yaml
+#     yq w aiops-patch-template.yaml "spec.pullSecrets[+]" "ibm-aiops-pull-secret" > ./roles/create-pull-secrets/files/aiops-patch.yaml
+#     oc apply -f aiops-patch.yaml
+#     oc delete -n {{ NAMESPACE }} pods $(oc get pods -n "{{ NAMESPACE }}" --no-headers -o custom-columns=":metadata.name" | grep "aiops-ir-analytics")
+#   ignore_errors: yes
+#####################################################
+#####################################################
+#####################################################
+#####################################################
+
+# Patch builder service account
+# - name: PREREQUISITES -      🩹 Patch builder service account
+#   shell: |
+#     INTERNAL=$(oc get secret -n {{ NAMESPACE }} | grep '^builder-dockercfg' | cut -f1 -d ' ')
+#     BASE=$(oc get secret ibm-entitlement-key -n {{ NAMESPACE }} -o json | jq ".data[]" | sed -e 's/^"//' -e 's/"$//' | base64 -d | sed -e 's/}}$/,/')
+#     ADDITIONAL=$(oc get secret $INTERNAL -n {{ NAMESPACE }} -o json | jq ".data[]" | sed -e 's/^"//' -e 's/"$//' | base64 -d | sed -e 's/^{//')
+#     echo $BASE$ADDITIONAL} > builder-secret.tmp
+#     oc create secret generic merged-secret --type=kubernetes.io/dockerconfigjson --from-file=.dockerconfigjson=builder-secret.tmp -n {{ NAMESPACE }} || true
+#     rm builder-secret.tmp
+#     oc patch serviceaccount builder  -p '{"secrets": [{"name": "merged-secret"}]}' -n {{ NAMESPACE }} || true
+#   register: ready
+# - name: DEBUG -              🟢 Output
+#   debug: 
+#     var: ready.stdout_lines
+#     verbosity: 1

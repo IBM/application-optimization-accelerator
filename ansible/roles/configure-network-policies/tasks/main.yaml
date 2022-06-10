@@ -1,0 +1,8 @@
+---
+- name: Check traffic/communication between namespaces
+  shell: oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.endpointPublishingStrategy.type}'
+  register: OUTPUT
+
+- name: Configure network policies
+  shell: oc patch namespace default --type=json -p '[{"op":"add","path":"/metadata/labels","value":{"network.openshift.io/policy-group":"ingress"}}]'; fi
+  when: OUTPUT.stdout == "HostNetwork"

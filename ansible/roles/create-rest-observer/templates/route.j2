@@ -1,0 +1,21 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: asm-svt-rest-observer
+  namespace: {{ NAMESPACE }}
+  labels:
+    app.kubernetes.io/name: rest-observer
+    app.kubernetes.io/instance: asm-svt
+spec:
+  host: asm-svt-{{ NAMESPACE }}.{{ PROXY_DOMAIN }}
+  path: /1.0/rest-observer
+  port:
+    targetPort: https-rest-observer-api
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: reencrypt
+  to:
+    kind: Service
+    name: aiops-topology-rest-observer
+    weight: 100
+  wildcardPolicy: None

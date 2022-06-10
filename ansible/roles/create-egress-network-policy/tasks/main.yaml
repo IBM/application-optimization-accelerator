@@ -1,0 +1,15 @@
+---
+- name: Find the AI Manager URL
+  shell: oc get route -n <namespace> cpd -o jsonpath='{.spec.host}'
+
+- name: Find the AI Manager console username
+  shell: oc -n ibm-common-services get secret platform-auth-idp-credentials -o jsonpath='{.data.admin_username}' | base64 -d && echo
+
+- name: Find the AI Manager console password
+  shell: oc -n ibm-common-services get secret platform-auth-idp-credentials -o jsonpath='{.data.admin_password}' | base64 -d
+  
+- name: Create an egress network policy
+# TODO
+
+- name: Finalize tls configuration
+# TODO

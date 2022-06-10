@@ -1,0 +1,183 @@
+---
+- name: Get auto ui instance
+  shell: oc get AutomationUIConfig -n "{{ NAMESPACE }}" --no-headers -o custom-columns=":metadata.name"
+  register: AUTO_UI_INSTANCE_OUTPUT
+
+- name: Set auto ui instance
+  set_fact:
+    AUTO_UI_INSTANCE: "{{ AUTO_UI_INSTANCE_OUTPUT.stdout }}"
+
+- name: get iaf storage
+  shell: oc get AutomationUIConfig -n "{{ NAMESPACE }}" -o jsonpath='{ .items[*].spec.zenService.storageClass }'
+  register: IAF_STORAGE_OUTPUT
+
+- name: Set iaf storage
+  set_fact:
+    IAF_STORAGE: "{{ IAF_STORAGE_OUTPUT.stdout }}"
+
+- name: Get zen storage
+  shell: oc get AutomationUIConfig -n "{{ NAMESPACE }}" -o jsonpath='{ .items[*].spec.zenService.zenCoreMetaDbStorageClass }'
+  register: ZEN_STORAGE_OUTPUT
+
+- name: Set zen storage
+  set_fact:
+    ZEN_STORAGE: "{{ ZEN_STORAGE_OUTPUT.stdout }}"
+  
+- name: Delete automation ui config
+  shell: oc delete -n "{{ NAMESPACE }}" AutomationUIConfig "{{ AUTO_UI_INSTANCE }}"
+  
+- name: Create automation ui config
+  kubernetes.core.k8s:
+    state: present
+    template: ./templates/automation-ui-config.j2
+
+# - name: Patch AutomationUIConfig
+#   # shell: oc -n "{{ NAMESPACE }}" patch AutomationUIConfig iaf-system --type merge --patch '{"spec":{"tls":{"issuerRef":{"name":""}}}}'
+#   shell: oc -n "{{ NAMESPACE }}" patch AutomationUIConfig iaf-system --type merge --patch '{"spec":{"tls":{}}}'
+#   register: SHELL_OUTPUT
+
+- name: Get ingress pod
+  shell: oc get secrets -n openshift-ingress | grep tls | grep -v router-metrics-certs-default | awk '{print $1}'
+  register: ingress_pod_output
+
+- name: Set ingress pod
+  set_fact: 
+    ingress_pod: "{{ ingress_pod_output.stdout }}"
+
+# base64 -d may not work for the image provided in the Dockerfile
+# Use base64 -di for the following condition:
+# when: ansible_distribution != "MacOSX"
+- name: Create external-tls-secret secret
+  shell: |
+    oc get secret -n openshift-ingress -o 'go-template={{ '{{' }}index .data "tls.crt"{{ '}}' }}' "{{ ingress_pod }}" | base64 -d > cert.crt
+    oc get secret -n openshift-ingress -o 'go-template={{ '{{' }}index .data "tls.key"{{ '}}' }}' "{{ ingress_pod }}" | base64 -d > cert.key
+    oc get secret -n "{{ NAMESPACE }}" external-tls-secret -o yaml > external-tls-secret.yaml
+    oc delete secret -n "{{ NAMESPACE }}" external-tls-secret
+    oc create secret generic -n "{{ NAMESPACE }}" external-tls-secret --from-file=cert.crt=cert.crt --from-file=cert.key=cert.key --dry-run=client -o yaml | oc apply -f -
+
+- name: Get number of ibm-nginx replicas
+  shell: oc get pods -l component=ibm-nginx -n "{{ NAMESPACE }}" -o jsonpath='{ .items[*].metadata.name }' | wc -w | xargs
+  register: REPLICAS_OUTPUT
+
+- name: Set replicas
+  set_fact:
+    REPLICAS: "{{ REPLICAS_OUTPUT.stdout }}"
+    
+- name: Scale down ibm-nginx deployment
+  shell: oc scale Deployment/ibm-nginx -n "{{ NAMESPACE }}" --replicas=0
+
+- name: wait 3 seconds
+  wait_for:
+    timeout: 3
+
+- name: Scale up ibm-nginx deployment
+  shell: oc scale Deployment/ibm-nginx -n "{{ NAMESPACE }}" --replicas="{{ REPLICAS }}"
+- name: Login to OpenShift cluster
+  shell: oc login --token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" --server=https://kubernetes.default --certificate-authority='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+
+# # - name: Wait for secured route
+# #   wait_for:
+# #     timeout: 60
+
+# ---
+# # - name: Finalize tls configuration
+# #   shell: |
+# #     oc -n ibm-common-services patch managementingress default --type merge --patch '{"spec":{"ignoreRouteCert":true}}'
+# #     oc extract secret/$(oc get route console -n openshift-console -o jsonpath="{.spec.host}" | awk -F'.' '{print $2}') -n openshift-ingress --confirm --to=./
+# #     split -p "-----BEGIN CERTIFICATE-----" tls.crt cert-
+# #     oc -n ibm-common-services delete certificate route-cert
+# #     oc -n ibm-common-services delete secret route-tls-secret
+# #     oc -n ibm-common-services create secret generic route-tls-secret --from-file=ca.crt=./cert-ab  --from-file=tls.crt=./cert-aa  --from-file=tls.key=./tls.key
+# #     oc -n "{{ NAMESPACE }}" patch AutomationUIConfig iaf-system --type merge --patch '{"spec":{"tls":{}}}'
+# #     oc -n "{{ NAMESPACE }}" delete secret external-tls-secret
+# #     oc -n "{{ NAMESPACE }}" create secret generic external-tls-secret --from-file=cert.crt=./tls.crt  --from-file=cert.key=./tls.key
+# #     oc -n ibm-common-services delete pod -l app=auth-idp
+# #     oc -n "{{ NAMESPACE }}" delete pod -l component=ibm-nginx
+
+# - name: Get auto ui instance
+#   shell: oc get AutomationUIConfig -n "{{ NAMESPACE }}" --no-headers -o custom-columns=":metadata.name"
+#   register: AUTO_UI_INSTANCE_OUTPUT
+
+# - name: Set auto ui instance
+#   set_fact:
+#     AUTO_UI_INSTANCE: AUTO_UI_INSTANCE_OUTPUT.stdout
+
+# - name: get iaf storage
+#   shell: oc get AutomationUIConfig -n "{{ NAMESPACE }}" -o jsonpath='{ .items[*].spec.zenService.storageClass }'
+#   register: IAF_STORAGE_OUTPUT
+
+# - name: Set iaf storage
+#   set_fact:
+#     IAF_STORAGE: IAF_STORAGE_OUTPUT.stdout
+
+# - name: Get zen storage
+#   shell: oc get AutomationUIConfig -n "{{ NAMESPACE }}" -o jsonpath='{ .items[*].spec.zenService.zenCoreMetaDbStorageClass }'
+#   register: ZEN_STORAGE_OUTPUT
+
+# - name: Set zen storage
+#   set_fact:
+#     ZEN_STORAGE: ZEN_STORAGE_OUTPUT.stdout
+  
+# - name: Delete automation ui config
+#   shell: oc delete -n "{{ NAMESPACE }}" AutomationUIConfig "{{ AUTO_UI_INSTANCE }}"
+  
+# - name: Create automation ui config
+#   kubernetes.core.k8s:
+#     state: present
+#     template: ./templates/automation-ui-config.j2
+
+# - name: Get ingress pod
+#   shell: oc get secrets -n openshift-ingress | grep tls | grep -v router-metrics-certs-default | awk '{print $1}'
+#   register: ingress_pod_output
+
+# - name: Set ingress pod
+#   set_fact: 
+#     ingress_pod: ingress_pod_output.stdout
+
+# - name: Create external-tls-secret secret
+#   shell: |
+#     oc get secret -n openshift-ingress -o 'go-template={{index .data "tls.crt"}}' "{{ ingress_pod }}" | base64 -d > cert.crt
+#     oc get secret -n openshift-ingress -o 'go-template={{index .data "tls.key"}}' "{{ ingress_pod }}" | base64 -d > cert.key
+#     oc get secret -n "{{ NAMESPACE }}" external-tls-secret -o yaml > external-tls-secret.yaml
+#     oc delete secret -n "{{ NAMESPACE }}" external-tls-secret
+#     oc create secret generic -n "{{ NAMESPACE }}" external-tls-secret --from-file=cert.crt=cert.crt --from-file=cert.key=cert.key --dry-run=client -o yaml | oc apply -f -
+
+# - name: Get number of ibm-nginx replicas
+#   shell: oc get pods -l component=ibm-nginx -o jsonpath='{ .items[*].metadata.name }' | wc -w
+#   register: REPLICAS_OUTPUT
+
+# - name: Set replicas
+#   set_fact:
+#     REPLICAS: REPLICAS_OUTPUT.stdout
+    
+# - name: Scale down ibm-nginx deployment
+#   shell: oc scale Deployment/ibm-nginx --replicas=0
+
+# - name: wait 3 seconds
+#   wait_for:
+#     timeout: 3
+
+# - name: Scale up ibm-nginx deployment
+#   shell: oc scale Deployment/ibm-nginx --replicas="{{ REPLICAS }}"
+
+# # - name: Wait for secured route
+# #   wait_for:
+# #     timeout: 60
+
+# # # - name: Finalize tls configuration
+# # #   shell: |
+# # #     oc -n ibm-common-services patch managementingress default --type merge --patch '{"spec":{"ignoreRouteCert":true}}'
+# # #     oc extract secret/$(oc get route console -n openshift-console -o jsonpath="{.spec.host}" | awk -F'.' '{print $2}') -n openshift-ingress --confirm --to=./
+# # #     split -p "-----BEGIN CERTIFICATE-----" tls.crt cert-
+# # #     oc -n ibm-common-services delete certificate route-cert
+# # #     oc -n ibm-common-services delete secret route-tls-secret
+# # #     oc -n ibm-common-services create secret generic route-tls-secret --from-file=ca.crt=./cert-ab  --from-file=tls.crt=./cert-aa  --from-file=tls.key=./tls.key
+# # #     oc -n "{{ NAMESPACE }}" patch AutomationUIConfig iaf-system --type merge --patch '{"spec":{"tls":{"issuerRef":{"name":""}}}}'
+# # #     oc -n "{{ NAMESPACE }}" delete secret external-tls-secret
+# # #     oc -n "{{ NAMESPACE }}" create secret generic external-tls-secret --from-file=cert.crt=./tls.crt  --from-file=cert.key=./tls.key
+# # #     oc -n ibm-common-services delete pod -l app=auth-idp
+# # #     oc -n "{{ NAMESPACE }}" delete pod -l component=ibm-nginx
+
+# # # - name: Wait for secured route
+# # #   wait_for:
+# # #     timeout: 60

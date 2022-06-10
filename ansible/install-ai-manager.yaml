@@ -1,0 +1,23 @@
+- hosts: localhost
+  vars_files: ./group_vars/ai-manager.yaml
+  roles:
+    - role: login-openshift
+    - role: create-project
+    # - role: create-entitlement-key
+    - role: configure-network-policies
+    - role: create-catalog-source
+    # - role: verify-cluster-readiness
+    - role: install-operator
+    # - role: configure-advanced-installation-options
+    - role: create-custom-resource # TODO: Wait until the custom resource is created
+    - role: access-ai-manager-console
+    # - role: create-egress-network-policy
+    # - role: finalize-tls-configuration # Enable for ROKS
+    # # - role: configure-signed-certificates-for-nginx
+    - role: deploy-robot-shop-application
+    # # - role: install-runbook-bastion-server
+    # - role: create-kubernetes-observer
+    # - role: create-rest-observer
+    # - role: create-aiops-application
+    # - role: create-merge-rules
+    # - role: train-models

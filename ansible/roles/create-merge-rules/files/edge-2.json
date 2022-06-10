@@ -1,0 +1,25 @@
+{
+  "app": "robotshop",
+  "availableReplicas": 1,
+  "createdReplicas": 1,
+  "dataCenter": "demo",
+  "desiredReplicas": 1,
+  "entityTypes": [
+    "deployment"
+  ],
+  "mergeTokens": [
+    "shipping"
+  ],
+  "matchTokens": [
+    "shipping-deployment"
+  ],
+  "name": "shipping",
+  "namespace": "robot-shop",
+  "readyReplicas": 1,
+  "tags": [
+    "app:robotshop",
+    "namespace:robot-shop"
+  ],
+  "vertexType": "resource",
+  "uniqueId": "shipping-id"
+}

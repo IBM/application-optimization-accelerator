@@ -1,0 +1,26 @@
+- name: Get Initial Admin password
+  shell: oc -n ibm-common-services get secret platform-auth-idp-credentials -o jsonpath='{.data.admin_password}' | base64 -d
+  register: ADMIN_PASSWORD
+
+- name: Get CP4D Cluster URL
+  shell: oc get ingress.config cluster -o jsonpath='{.spec.domain}'
+  register: CP4WAIOPS_CLUSTER_URL
+
+- name: Get Authorization Bearer Token
+  shell: |
+    curl -k -X POST \
+    -H "cache-control: no-cache" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"{{ ADMIN_USERNAME }}\",\"password\":\"{{ ADMIN_PASSWORD.stdout }}\"}" \
+    "https://cpd-{{ NAMESPACE }}.{{ CP4WAIOPS_CLUSTER_URL.stdout }}:{{ CP4WAIOPS_PORT }}/icp4d-api/v1/authorize" \
+    | jq | grep token | tr -d '"' | cut -d ':' -f2 | cut -d ' ' -f2 
+  register: BEARER_TOKEN
+
+- name: Create a CP4WAIOPS user with the Zen Administrator Role
+  shell: |
+    curl -k -X POST \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer {{ BEARER_TOKEN.stdout }}" \
+    -H "cache-control: no-cache" \
+    -d "{\"user_name\":\"{{ GUEST_USERNAME }}\",\"password\":\"{{ GUEST_PASSWORD }}\",\"displayName\":\"{{ GUEST_DISPLAY_NAME }}\",\"user_roles\":[\"{{ GUEST_ROLES }}\"],\"email\":\"{{ GUEST_EMAIL }}\"}" \
+    "https://cpd-{{ NAMESPACE }}.{{CP4WAIOPS_CLUSTER_URL.stdout }}:{{ CP4WAIOPS_PORT }}/icp4d-api/v1/users"

@@ -1,0 +1,36 @@
+---
+- name: Create the operator group
+  kubernetes.core.k8s:
+    state: present
+    template: ./templates/operator-group.j2
+
+- name: Wait until the operator group is created
+  kubernetes.core.k8s_info:
+    kind: OperatorGroup
+    wait: yes
+    name: cp4waiops-operator-group
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 10
+    wait_timeout: 360
+
+- name: Create the AI Manager operator
+  kubernetes.core.k8s:
+    state: present
+    template: ./templates/subscription.j2
+
+- name: Wait until the operator subscription is created
+  kubernetes.core.k8s_info:
+    kind: Subscription
+    wait: yes
+    api_version: v1alpha1
+    name: ibm-aiops-orchestrator
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 10
+    wait_timeout: 360
+
+- name: Verify that all components are in the Succeeded state
+  shell: oc get csv -n {{ NAMESPACE }} | grep ibm-aiops-orchestrator
+  register: OUTPUT
+  until: '"Succeeded" in OUTPUT.stdout'
+  retries: 500
+  delay: 15

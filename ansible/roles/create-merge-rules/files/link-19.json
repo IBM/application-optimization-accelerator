@@ -1,0 +1,5 @@
+{
+  "_edgeType": "dependsOn",
+  "_fromUniqueId": "rabbitmq-id",
+  "_toUniqueId": "dispatch-id"
+}

@@ -1,0 +1,263 @@
+---
+- name: Create the custom resource
+  kubernetes.core.k8s:
+    state: present
+    template: './templates/custom-resource.j2'
+
+# - name: Wait until the custom resource is created
+#   kubernetes.core.k8s_info:
+#     kind: Installation
+#     wait: yes
+#     api_version: v1alpha1
+#     name: "{{ WAIOPS_NAME }}"
+#     namespace: "{{ NAMESPACE }}"
+#     wait_sleep: 25
+#     wait_timeout: 4800
+#   retries: 192
+#   delay: 25
+#   register: RESULT
+#   until: RESULT.api_found == True
+- name: Wait until the custom resource is created
+  kubernetes.core.k8s_info:
+    kind: Installation
+    wait: yes
+    api_version: v1alpha1
+    name: "{{ WAIOPS_NAME }}"
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    field_selectors:
+      - status.phase=Running
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+- name: Wait until the issue resolution core is created
+  kubernetes.core.k8s_info:
+    kind: IssueResolutionCore
+    wait: yes
+    api_version: v1beta1
+    name: aiops
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    wait_condition:
+      type: Ready
+      status: "True"
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+- name: Wait until the aiops analytics orchestrator core is created
+  kubernetes.core.k8s_info:
+    kind: AIOpsAnalyticsOrchestrator
+    wait: yes
+    api_version: v1beta1
+    name: aiops
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    wait_condition:
+      type: Ready
+      status: "True"
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+- name: Wait until the lifecycle service is created
+  kubernetes.core.k8s_info:
+    kind: LifecycleService
+    wait: yes
+    api_version: v1beta1
+    name: aiops
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    wait_condition:
+      type: Lifecycle Service Ready
+      status: "True"
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+- name: Wait until the base ui is created
+  kubernetes.core.k8s_info:
+    kind: BaseUI
+    wait: yes
+    name: baseui-instance
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    wait_condition:
+      type: Ready
+      status: "True"
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+# Failed to find API for resource with apiVersion \"v1\" and kind \"AIManager\
+# - name: Wait until the ai manager is created
+#   kubernetes.core.k8s_info:
+#     kind: AIManager
+#     wait: yes
+#     api_version: v1beta1
+#     name: aimanager
+#     namespace: "{{ NAMESPACE }}"
+#     wait_sleep: 25
+#     wait_timeout: 4800
+#     wait_condition:
+#       type: Completed
+#       status: "True"
+#   retries: 192
+#   delay: 25
+#   register: RESULT
+#   until: RESULT.api_found == True
+- name: Wait until the ai manager is created
+  kubernetes.core.k8s_info:
+    kind: AIManager
+    wait: yes
+    api_version: v1beta1
+    name: aimanager
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    field_selectors:
+      - status.phase=Completed
+  retries: 192
+  delay: 25
+  register: RESULT
+  #until: RESULT.api_found == True
+  until: RESULT.resources | map(attribute='status') | map(attribute='phase') == ['Completed']
+
+
+# Failed to find API for resource with apiVersion \"v1\" and kind \"AIOpsEdge\
+# - name: Wait until the ai ops edge is created
+#   kubernetes.core.k8s_info:
+#     kind: AIOpsEdge
+#     wait: yes
+#     api_version: v1beta1
+#     name: aiopsedge
+#     namespace: "{{ NAMESPACE }}"
+#     wait_sleep: 25
+#     wait_timeout: 4800
+#     wait_condition:
+#       # Configured is a phase, not a type
+#       # type: Configured
+#       type: Ready
+#       status: "True"
+#   retries: 192
+#   delay: 25
+#   register: RESULT
+#   until: RESULT.api_found == True
+- name: Wait until the ai ops edge is created
+  kubernetes.core.k8s_info:
+    kind: AIOpsEdge
+    wait: yes
+    api_version: v1beta1
+    name: aiopsedge
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    field_selectors:
+      - status.phase=Configured
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+# - name: Wait until the asm is created
+#   kubernetes.core.k8s_info:
+#     kind: ASM
+#     wait: yes
+#     name: aiops-topology
+#     namespace: "{{ NAMESPACE }}"
+#     wait_sleep: 25
+#     wait_timeout: 4800
+#     wait_condition:
+#       type: OK
+#       status: "True"
+#   retries: 192
+#   delay: 25
+#   register: RESULT
+#   until: RESULT.api_found == True
+
+- name: Wait until the asm is created
+  kubernetes.core.k8s_info:
+    kind: ASM
+    wait: yes
+    api_version: v1beta1
+    name: aiops-topology
+    namespace: "{{ NAMESPACE }}"
+    wait_sleep: 25
+    wait_timeout: 4800
+    field_selectors:
+      - status.phase=OK
+  retries: 192
+  delay: 25
+  register: RESULT
+  until: RESULT.api_found == True
+
+# - name: Verify the installation
+#   shell: |
+#     oc get installations.orchestrator.aiops.ibm.com -A && \
+#     echo "" &&  oc get ircore,AIOpsAnalyticsOrchestrator -A -o custom-columns="KIND:kind,NAMESPACE:metadata.namespace,NAME:metadata.name,STATUS:status.conditions[?(@.type==\"Ready\")].reason" && \
+#     echo "" && oc get lifecycleservice -A -o custom-columns="KIND:kind,NAMESPACE:metadata.namespace,NAME:metadata.name,STATUS:status.conditions[?(@.type==\"Lifecycle Service Ready\")].reason" && \
+#     echo "" && oc get BaseUI -A -o custom-columns="KIND:kind,NAMESPACE:metadata.namespace,NAME:metadata.name,STATUS:status.conditions[?(@.type==\"Ready\")].reason" && echo "" && \
+#     oc get AIManager,aiopsedge,asm -A -o custom-columns="KIND:kind,NAMESPACE:metadata.namespace,NAME:metadata.name,STATUS:status.phase"
+
+##### Verify the Installation
+# - name: Wait for more than >{{ CS_NS_MIN_PODS }} pods in namespace ibm-common-services
+#   shell: |
+#     NUM_PODS=$(oc get po -n ibm-common-services | wc -l)
+#     echo $NUM_PODS
+#   register: kubectl_num_pods
+#   until: kubectl_num_pods.stdout|int > CS_NS_MIN_PODS
+#   retries: 500
+#   delay: 15
+
+# - name: Wait for ibm-common-services to become ready
+#   shell: oc get po -n ibm-common-services | grep -v Running |grep -v Completed | grep -c ""
+#   register: kubectl_get_pods
+#   until: kubectl_get_pods.stdout == "1"
+#   retries: 500
+#   delay: 15
+
+# # - name: Wait for Zen Ansible Script zen_ready.stdout in namespace ibm-common-services
+# #   shell: |
+# #     ZEN_LOGS=$(oc logs $(oc get po -n ibm-common-services|grep ibm-zen-operator|awk '{print$1}') -n ibm-common-services|grep -i "failed=0")
+# #     echo $ZEN_LOGS
+# #   register: zen_ready
+# #   until: ("failed=0" in zen_ready.stdout)
+# #   retries: 500
+# #   delay: 15
+
+# # comment
+# # # Unsure if 115 is the correct WAIOPS_NS_MIN_PODS_FINAL value
+# # # - name: Wait for more than >{{ WAIOPS_NS_MIN_PODS_FINAL }} pods in namespace {{ NAMESPACE }}
+# # #   shell: |
+# # #     NUM_PODS=$(oc get po -n {{ NAMESPACE }} | wc -l)
+# # #     echo $NUM_PODS
+# # #   register: kubectl_num_pods
+# # #   until: kubectl_num_pods.stdout|int > WAIOPS_NS_MIN_PODS_FINAL
+# # #   retries: 500
+# # #   delay: 15
+# # comment 
+
+# - name: Wait for {{ NAMESPACE }} to become ready
+#   shell: oc get po -n {{ NAMESPACE }} | grep -v Running |grep -v Completed |grep -v zen-tour-job| wc -l| tr -d ' '
+#   register: kubectl_get_pods
+#   until: kubectl_get_pods.stdout|int >= 1
+#   retries: 500
+#   delay: 15
+
+# - name: Wait for all Pods in {{ NAMESPACE }} to become ready
+#   shell: oc get po -n {{ NAMESPACE }} | grep -v Completed | grep -v Error |grep "0/" |wc -l| tr -d ' '
+#   register: kubectl_get_pods
+#   until: kubectl_get_pods.stdout == "0"
+#   retries: 500
+#   delay: 15

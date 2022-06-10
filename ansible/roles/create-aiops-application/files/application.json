@@ -1,0 +1,11 @@
+{
+    "keyIndexName": "robotshop",
+    "_correlationEnabled": "true",
+    "iconId": "application",
+    "vertexType": "group",
+    "correlatable": "true",
+    "name": "robotshop",
+    "entityTypes": [
+      "waiopsApplication"
+    ]
+}
